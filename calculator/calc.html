@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BBD Day 1 - Calculator</title>
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    
+<main class="container">
+    <section class="calculator">
+        <form>
+
+            <!-- Display Screen -->
+            <section class="display">
+                <input type="text" name="display">
+            </section>
+
+            <!-- Calc Buttons: 1st row-->
+            <section>
+                <input type="button" value="AC" onclick="clearDisplayBtn()" class="operators">
+                <input type="button" value="DE" onclick="deleteLastBtn()" class="operators">
+                <input type="button" value="." onclick="handleDot()" class="operators">
+                <input type="button" value="/" onclick="handleOperator('/')" class="operators">
+            </section>
+
+            <!-- Calc Buttons: 2nd row-->
+            <section>
+                <input type="button" value="7" onclick="handleNumber('7')">
+                <input type="button" value="8" onclick="handleNumber('8')">
+                <input type="button" value="9" onclick="handleNumber('9')">
+                <input type="button" value="x" onclick="handleOperator('x')" class="operators">
+            </section>
+
+            <!-- Calc Buttons: 3rd row-->
+            <section>
+                <input type="button" value="4" onclick="handleNumber('4')">
+                <input type="button" value="5" onclick="handleNumber('5')">
+                <input type="button" value="6" onclick="handleNumber('6')">
+                <input type="button" value="-" onclick="handleOperator('-')" class="operators">
+            </section>
+
+            <!-- Calc Buttons: 4th row-->
+            <section>
+                <input type="button" value="1" onclick="handleNumber('1')">
+                <input type="button" value="2" onclick="handleNumber('2')">
+                <input type="button" value="3" onclick="handleNumber('3')">
+                <input type="button" value="+" onclick="handleOperator('+')" class="operators">
+            </section>
+
+            <!-- Calc Buttons: 5th row-->
+            <section>
+                <input type="button" value="00" onclick="handleNumber('00')">
+                <input type="button" value="0" onclick="handleNumber('0')">
+                <input type="button" value="=" onclick="calculateResult()" class="equal">
+            </section>
+
+        </form>
+
+    </section>
+</main>
+
+<!-- JAVASCRIPT LOGIC -->
+<script>
+
+    // Reference to the calculator display
+    const display = document.querySelector('input[name="display"]');
+    display.value = "0";   // default state
+
+
+    // Flag to track if the last action was pressing "=" successfully
+    let justEvaluated = false;
+
+    /* 
+       ----------------------------------------------------
+       BASIC OPERATION FUNCTIONS 
+       ----------------------------------------------------
+    */
+
+    function add(a, b) {
+        return a + b; 
+    }
+
+    function subtract(a, b) {
+        return a - b;
+    }
+
+    function multiply(a, b) {
+        return a * b;
+    }
+
+    function divide(a, b) {
+        // Handle divide-by-zero case
+        if (b === 0) {
+            return NaN; // we'll handle this as "Error" later
+        }
+        return a / b;
+    }
+
+    /* 
+       ----------------------------------------------------
+       INPUT HANDLER FUNCTIONS
+       Control how the display changes when buttons are pressed
+       ----------------------------------------------------
+    */
+
+    // Handle when a number (0–9, 00) is pressed
+    function handleNumber(digit) {
+        // If result was just shown OR display says "Error" → start fresh
+        if (justEvaluated || display.value === "Error") {
+            display.value = digit;
+        }
+        // If display is just "0", replace it unless user presses "0" or "00"
+        else if (display.value === "0") {
+            display.value = digit;
+        }
+        // Normal case: append number
+        else {
+            display.value += digit;
+        }
+
+        justEvaluated = false;
+    }
+
+
+    // Handle when an operator (+, -, x, /) is pressed
+    function handleOperator(op) {
+        const operators = ['+', '-', 'x', '/'];
+        const current = display.value;
+
+        // If display is "0", allow operators (0+, 0-, 0x, 0/)
+        if (current === "0") {
+            display.value = "0" + op;
+            justEvaluated = false;
+            return;
+        }
+
+        // If display is Error: only allow "-" to start negative number
+        if (current === "Error") {
+            if (op === "-") {
+                display.value = "-";
+            }
+            return;
+        }
+
+        const lastChar = current.slice(-1);
+
+        if (justEvaluated) {
+            // After result, allow chaining → "4" then "+"
+            display.value = current + op;
+        }
+        else if (operators.includes(lastChar)) {
+            // Replace last operator e.g. 4+ → 4-
+            display.value = current.slice(0, -1) + op;
+        }
+        else {
+            // Normal append
+            display.value = current + op;
+        }
+
+        justEvaluated = false;
+    }
+
+
+    // Handle when "." is pressed
+    function handleDot() {
+        const current = display.value;
+
+        // After equals or Error or empty → start a fresh decimal number
+        if (justEvaluated || current === "Error") {
+            display.value = "0.";
+            justEvaluated = false;
+            return;
+        }
+
+        // If display is "0", turn into "0."
+        if (current === "0") {
+            display.value = "0.";
+            justEvaluated = false;
+            return;
+        }
+
+        // Otherwise append dot
+        display.value += '.';
+        justEvaluated = false;
+    }
+
+    // Clear (AC) button
+function clearDisplayBtn() {
+    // Always reset to "0"
+    display.value = "0";
+    justEvaluated = false;
+}
+
+// Delete (DE) button
+function deleteLastBtn() {
+    let current = display.value;
+
+    // If currently showing an error, just reset to 0
+    if (current === "Error") {
+        display.value = "0";
+        justEvaluated = false;
+        return;
+    }
+
+    // If only one character left, or already "0", reset to "0"
+    if (current.length <= 1 || current === "0") {
+        display.value = "0";
+    } else {
+        // Remove last character
+        display.value = current.slice(0, -1);
+    }
+
+    justEvaluated = false;
+}
+
+
+    /* 
+       ----------------------------------------------------
+       TOKENISER
+       Converts a string like "-5+6x9" into:
+       [-5, '+', 6, 'x', 9]
+       Handles:
+       - multi-digit numbers
+       - decimals
+       - leading minus, e.g. "-5"
+       - minus after another operator, e.g. "6x-9"
+       ----------------------------------------------------
+    */
+    function tokenize(expression) {
+        const tokens = [];
+        let currentNumber = '';
+
+        const isOperator = (ch) => ['+', '-', 'x', '/'].includes(ch);
+
+        for (let i = 0; i < expression.length; i++) {
+            const ch = expression[i];
+
+            // If digit or decimal point, build up the current number
+            if ((!isNaN(ch) && ch !== ' ') || ch === '.') {
+                currentNumber += ch;
+            } 
+            else if (isOperator(ch)) {
+                // Handle negative sign as part of a number:
+                // - at start: "-5+6"
+                // - or right after another operator: "6x-9"
+                if (ch === '-' && (currentNumber === '' && (tokens.length === 0 || isOperator(tokens[tokens.length - 1])))) {
+                    currentNumber += ch; // attach '-' to the number
+                } else {
+                    // Finish the current number (if any) and push to tokens
+                    if (currentNumber !== '') {
+                        tokens.push(parseFloat(currentNumber));
+                        currentNumber = '';
+                    }
+                    // Push the operator as a separate token
+                    tokens.push(ch);
+                }
+            } 
+            else {
+                // Any invalid character → return empty to indicate error
+                return [];
+            }
+        }
+
+        // Push the last number, if there is one
+        if (currentNumber !== '') {
+            tokens.push(parseFloat(currentNumber));
+        }
+
+        return tokens;
+    }
+
+    /* 
+       ----------------------------------------------------
+       EVALUATE WITH BODMAS
+       1st pass: handle x and / (higher precedence)
+       2nd pass: handle + and -
+       ----------------------------------------------------
+    */
+    function evaluateTokens(tokens) {
+        if (tokens.length === 0) {
+            return NaN;
+        }
+
+        // ---------- First pass: x and / ----------
+        let firstPass = [];
+        firstPass.push(tokens[0]); // first token must be a number
+
+        for (let i = 1; i < tokens.length; i += 2) {
+            const op = tokens[i];
+            const nextNum = tokens[i + 1];
+
+            if (op === 'x' || op === '/') {
+                const lastNum = firstPass.pop();
+
+                let intermediate;
+                switch (op) {
+                    case 'x':
+                        intermediate = multiply(lastNum, nextNum);
+                        break;
+                    case '/':
+                        intermediate = divide(lastNum, nextNum);
+                        break;
+                }
+
+                firstPass.push(intermediate);
+            } else {
+                // For + and -, just carry them over for the second pass
+                firstPass.push(op, nextNum);
+            }
+        }
+
+        // ---------- Second pass: + and - ----------
+        let result = firstPass[0];
+
+        for (let i = 1; i < firstPass.length; i += 2) {
+            const op = firstPass[i];
+            const nextNum = firstPass[i + 1];
+
+            switch (op) {
+                case '+':
+                    result = add(result, nextNum);
+                    break;
+                case '-':
+                    result = subtract(result, nextNum);
+                    break;
+            }
+        }
+
+        return result;
+    }
+
+    /* 
+       ----------------------------------------------------
+       MAIN CALCULATOR FUNCTION
+       - Reads the expression from the display
+       - Tokenizes it
+       - Evaluates using precedence (BODMAS)
+       - Shows "Error" for invalid expressions / divide by zero
+       - Sets justEvaluated = true when result is valid
+       ----------------------------------------------------
+    */
+    function calculateResult() {
+        const expression = display.value;
+
+        // Step 1: turn the string into number/operator tokens
+        const tokens = tokenize(expression);
+
+        // Invalid tokens → Error
+        if (tokens.length === 0) {
+            display.value = 'Error';
+            justEvaluated = false;
+            return;
+        }
+
+        // Step 2: evaluate with correct precedence
+        const result = evaluateTokens(tokens);
+
+        // Step 3: check for invalid numeric result
+        if (isNaN(result)) {
+            display.value = 'Error';
+            justEvaluated = false;
+        } else {
+            display.value = result;
+            justEvaluated = true; // mark that we just showed a final result
+        }
+    }
+
+</script>
+
+</body>
+</html>
