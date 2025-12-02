@@ -10,53 +10,24 @@
     
 <main class="container">
     <section class="calculator">
-        <form>
 
-            <!-- Display Screen -->
-            <section class="display">
-                <input type="text" name="display">
-            </section>
+        <!-- Mode Label at top-left of the calculator -->
+        <header id="modeLabel" class="mode-label">Basic</header>
 
-            <!-- Calc Buttons: 1st row-->
-            <section>
-                <input type="button" value="AC" onclick="clearDisplayBtn()" class="operators">
-                <input type="button" value="DE" onclick="deleteLastBtn()" class="operators">
-                <input type="button" value="." onclick="handleDot()" class="operators">
-                <input type="button" value="/" onclick="handleOperator('/')" class="operators">
-            </section>
+        <!-- Display Screen -->
+        <section class="display">
+        <input type="text" name="display">
+        <p id="ghostParen" class="ghost-paren">)</p>
+        </section>
 
-            <!-- Calc Buttons: 2nd row-->
-            <section>
-                <input type="button" value="7" onclick="handleNumber('7')">
-                <input type="button" value="8" onclick="handleNumber('8')">
-                <input type="button" value="9" onclick="handleNumber('9')">
-                <input type="button" value="x" onclick="handleOperator('x')" class="operators">
-            </section>
 
-            <!-- Calc Buttons: 3rd row-->
-            <section>
-                <input type="button" value="4" onclick="handleNumber('4')">
-                <input type="button" value="5" onclick="handleNumber('5')">
-                <input type="button" value="6" onclick="handleNumber('6')">
-                <input type="button" value="-" onclick="handleOperator('-')" class="operators">
-            </section>
-
-            <!-- Calc Buttons: 4th row-->
-            <section>
-                <input type="button" value="1" onclick="handleNumber('1')">
-                <input type="button" value="2" onclick="handleNumber('2')">
-                <input type="button" value="3" onclick="handleNumber('3')">
-                <input type="button" value="+" onclick="handleOperator('+')" class="operators">
-            </section>
-
-            <!-- Calc Buttons: 5th row-->
-            <section>
-                <input type="button" value="00" onclick="handleNumber('00')">
-                <input type="button" value="0" onclick="handleNumber('0')">
-                <input type="button" value="=" onclick="calculateResult()" class="equal">
-            </section>
-
-        </form>
+        <!-- Button rows (empty: will be filled by JS) -->
+        <section id="row1" class="button-row"></section>
+        <section id="row2" class="button-row"></section>
+        <section id="row3" class="button-row"></section>
+        <section id="row4" class="button-row"></section>
+        <section id="row5" class="button-row"></section>
+        <section id="row6" class="button-row"></section>
 
     </section>
 </main>
@@ -67,10 +38,189 @@
     // Reference to the calculator display
     const display = document.querySelector('input[name="display"]');
     display.value = "0";   // default state
+    const ghostParenEl = document.getElementById("ghostParen"); // reference to ghost parenthesis
 
+    // Long-press handling for AC/DE
+    let clearDeleteTimeout = null;
+    const LONG_PRESS_DURATION = 600; // ms
 
     // Flag to track if the last action was pressing "=" successfully
     let justEvaluated = false;
+
+    /* 
+       ----------------------------------------------------
+       BUTTON LAYOUT (ROW STRUCTURE)
+       ----------------------------------------------------
+    */
+
+    const buttonLayout = [
+        // Row 1: %, (, ), AC/DE
+        [
+            { label: '%',   type: 'percent',     className: 'operators' },
+            { label: '(',   type: 'parenOpen',   className: 'operators' },
+            { label: ')',   type: 'parenClose',  className: 'operators' },
+            { label: 'AC',  type: 'clearDelete', className: 'operators', id: 'clearDeleteBtn' }
+        ],
+        // Row 2: 1/x, x², √x, ÷
+        [
+            { label: '1/x',   type: 'reciprocal', className: 'operators' },
+            { label: 'x²',    type: 'square',     className: 'operators' },
+            { label: '√x',    type: 'sqrt',       className: 'operators' },
+            { label: '/',     type: 'operator',   className: 'operators' }
+        ],
+        // Row 3: 7 8 9 x
+        [
+            { label: '7', type: 'number' },
+            { label: '8', type: 'number' },
+            { label: '9', type: 'number' },
+            { label: 'x', type: 'operator', className: 'operators' }
+        ],
+        // Row 4: 4 5 6 -
+        [
+            { label: '4', type: 'number' },
+            { label: '5', type: 'number' },
+            { label: '6', type: 'number' },
+            { label: '-', type: 'operator', className: 'operators' }
+        ],
+        // Row 5: 1 2 3 +
+        [
+            { label: '1', type: 'number' },
+            { label: '2', type: 'number' },
+            { label: '3', type: 'number' },
+            { label: '+', type: 'operator', className: 'operators' }
+        ],
+        // Row 6: +/- 0 . =
+        [
+            { label: '+/-', type: 'sign', className: 'operators' },
+            { label: '0',   type: 'number' },
+            { label: '.',   type: 'dot',  className: 'operators' },
+            { label: '=',   type: 'equal', className: 'equal' }
+        ]
+    ];
+
+    /* 
+       ----------------------------------------------------
+       CREATE BUTTONS DYNAMICALLY
+       ----------------------------------------------------
+    */
+
+    function createButtons() {
+        buttonLayout.forEach((row, rowIndex) => {
+            const rowSection = document.getElementById(`row${rowIndex + 1}`);
+            row.forEach(config => {
+                const btn = document.createElement('input');
+                btn.type = 'button';
+                btn.value = config.label;
+
+                if (config.className) {
+                    btn.classList.add(config.className);
+                }
+
+                if (config.id) {
+                    btn.id = config.id;
+                }
+
+                // Attach event listeners based on type
+                switch (config.type) {
+                    case 'number':
+                        btn.addEventListener('click', () => handleNumber(config.label));
+                        break;
+                    case 'operator':
+                        btn.addEventListener('click', () => handleOperator(config.label));
+                        break;
+                    case 'dot':
+                        btn.addEventListener('click', handleDot);
+                        break;
+                    case 'equal':
+                        btn.addEventListener('click', calculateResult);
+                        break;
+                    case 'sign':
+                        btn.addEventListener('click', toggleSign);
+                        break;
+                    case 'clearDelete':
+                        // Long press = AC, short press = DE
+                        btn.addEventListener('mousedown', startClearDelete);
+                        btn.addEventListener('mouseup', endClearDelete);
+                        btn.addEventListener('mouseleave', endClearDelete);
+                        btn.addEventListener('touchstart', startClearDelete);
+                        btn.addEventListener('touchend', endClearDelete);
+                        break;
+                    case 'percent':
+                        btn.addEventListener('click', handlePercent);
+                        break;
+                    case 'parenOpen':
+                        btn.addEventListener('click', () => handleParenthesis('('));
+                        break;
+                    case 'parenClose':
+                        btn.addEventListener('click', () => handleParenthesis(')'));
+                        break;
+                    case 'reciprocal':
+                        btn.addEventListener('click', handleReciprocal);
+                        break;
+                    case 'square':
+                        btn.addEventListener('click', handleSquare);
+                        break;
+                    case 'sqrt':
+                        btn.addEventListener('click', handleSqrt);
+                        break;
+                }
+
+                rowSection.appendChild(btn);
+            });
+        });
+
+        // Initialise AC/DE label correctly on load
+        updateClearDeleteLabel();
+    }
+
+
+    /* 
+       ----------------------------------------------------
+       HELPER FUNCTIONS
+       ---------------------------------------------------- 
+    */
+
+    function isAtMaxLength() {
+        return display.value.length >= 12;
+    }
+
+
+    /* 
+       ----------------------------------------------------
+       AC / DE HYBRID BUTTON (SHORT vs LONG PRESS)
+       ---------------------------------------------------- 
+    */
+
+    function updateClearDeleteLabel() {
+        const btn = document.getElementById("clearDeleteBtn");
+        if (!btn) return;
+
+        if (display.value === "0") {
+            btn.value = "AC";
+        } else {
+            btn.value = "DE";
+        }
+    }
+
+    // Start timer when button is pressed down
+    function startClearDelete(event) {
+        event.preventDefault(); // prevent text selection / ghost clicks
+        clearDeleteTimeout = setTimeout(() => {
+            clearDisplayBtn();        // long press → AC
+            clearDeleteTimeout = null;
+        }, LONG_PRESS_DURATION);
+    }
+
+    // On release: if timer still pending, treat as DE (short press)
+    function endClearDelete(event) {
+        event.preventDefault();
+        if (clearDeleteTimeout !== null) {
+            clearTimeout(clearDeleteTimeout);
+            clearDeleteTimeout = null;
+            deleteLastBtn();          // short press → DE
+        }
+        // if null, AC already happened
+    }
 
     /* 
        ----------------------------------------------------
@@ -93,25 +243,195 @@
     function divide(a, b) {
         // Handle divide-by-zero case
         if (b === 0) {
-            return NaN; // we'll handle this as "Error" later
+            return NaN; // we'll handle as "Error" 
         }
         return a / b;
     }
 
     /* 
        ----------------------------------------------------
-       INPUT HANDLER FUNCTIONS
-       Control how the display changes when buttons are pressed
+       GHOST PARENTHESIS VISUAL AID
        ----------------------------------------------------
     */
 
-    // Handle when a number (0–9, 00) is pressed
+    function countUnmatchedParens(expr) {
+        let open = 0, close = 0;
+        for (let ch of expr) {
+            if (ch === '(') open++;
+            if (ch === ')') close++;
+        }
+        return open - close;   // >0 means we still owe some ')'
+    }
+
+    function updateGhostParen() {
+        if (!ghostParenEl) return;
+        const expr = display.value;
+
+        // No ghost when empty / default / error
+        if (expr === "0" || expr === "" || expr === "Error") {
+            ghostParenEl.style.display = "none";
+            return;
+        }
+
+        const unmatched = countUnmatchedParens(expr);
+        if (unmatched > 0) {
+            ghostParenEl.style.display = "block";
+        } else {
+            ghostParenEl.style.display = "none";
+        }
+    }
+
+    function canCloseParen(expr) {
+        return countUnmatchedParens(expr) > 0;
+    }
+
+
+    /* 
+       ----------------------------------------------------
+       SCIENTIFIC FUNCTIONS
+       (will implement these later)
+       ----------------------------------------------------
+    */
+
+    // Handle when "%" is pressed
+    function handlePercent() {
+        let exp = display.value;
+
+        // Convert last number to percentage
+        const match = exp.match(/(\d+\.?\d*)$/);
+        if (!match) return;
+
+        const number = parseFloat(match[1]);
+        const percent = number / 100;
+
+        display.value = exp.replace(/(\d+\.?\d*)$/, percent);
+        justEvaluated = false;
+    }
+
+    function handleReciprocal() {
+        let exp = display.value;
+
+        // Cannot operate on an error
+        if (exp === "Error") return;
+
+        // Find the last number in the expression
+        const match = exp.match(/(-?\d+(\.\d+)?|\d+(\.\d+)?)(?=$)/);
+        if (!match) return;
+
+        const numberStr = match[0];
+        const number = parseFloat(numberStr);
+
+        // Division by zero → Error
+        if (number === 0) {
+            display.value = "Error";
+            justEvaluated = false;
+            updateClearDeleteLabel();
+            updateGhostParen();
+            return;
+        }
+
+        const result = 1 / number;
+
+        // Replace the last number with the reciprocal
+        display.value = exp.slice(0, -numberStr.length) + result;
+
+        justEvaluated = false;
+        updateClearDeleteLabel();
+        updateGhostParen();
+    }
+
+
+    function handleSquare() {
+        let exp = display.value;
+
+        if (exp === "Error") return;
+
+        // Find last number
+        const match = exp.match(/(-?\d+(\.\d+)?|\d+(\.\d+)?)(?=$)/);
+        if (!match) return;
+
+        const numberStr = match[0];
+        const number = parseFloat(numberStr);
+
+        const result = number * number;
+
+        display.value = exp.slice(0, -numberStr.length) + result;
+
+        justEvaluated = false;
+        updateClearDeleteLabel();
+        updateGhostParen();
+    }
+
+
+    function handleSqrt() {
+        let exp = display.value;
+
+        if (exp === "Error") return;
+
+        // Find last number
+        const match = exp.match(/(-?\d+(\.\d+)?|\d+(\.\d+)?)(?=$)/);
+        if (!match) return;
+
+        const numberStr = match[0];
+        const number = parseFloat(numberStr);
+
+        // Negative inside √ → Error
+        if (number < 0) {
+            display.value = "Error";
+            justEvaluated = false;
+            updateClearDeleteLabel();
+            updateGhostParen();
+            return;
+        }
+
+        const result = Math.sqrt(number);
+
+        display.value = exp.slice(0, -numberStr.length) + result;
+
+        justEvaluated = false;
+        updateClearDeleteLabel();
+        updateGhostParen();
+    }
+
+
+    function toggleSign() {
+        // Simple version: toggle sign if current display is a single number
+        const current = display.value;
+
+        if (current === "0" || current === "Error") {
+            return;
+        }
+
+        // Only toggle if it's a plain number (no operators)
+        if (!/^[+-]?\d*\.?\d+$/.test(current)) {
+            return;
+        }
+
+        if (current.startsWith("-")) {
+            display.value = current.slice(1);
+        } else {
+            display.value = "-" + current;
+        }
+
+        justEvaluated = false;
+        updateClearDeleteLabel();
+    }
+
+    /* 
+       ----------------------------------------------------
+       BASIC HANDLER FUNCTIONS
+       ----------------------------------------------------
+    */
+
+    // Handle when a number (0–9) is pressed
     function handleNumber(digit) {
+        if (isAtMaxLength()) return;
+
         // If result was just shown OR display says "Error" → start fresh
         if (justEvaluated || display.value === "Error") {
             display.value = digit;
         }
-        // If display is just "0", replace it unless user presses "0" or "00"
+        // If display is just "0", replace it
         else if (display.value === "0") {
             display.value = digit;
         }
@@ -121,56 +441,94 @@
         }
 
         justEvaluated = false;
+        updateClearDeleteLabel();
+        updateGhostParen();
     }
 
-
     // Handle when an operator (+, -, x, /) is pressed
-    function handleOperator(op) {
+   function handleOperator(op) {
+        if (isAtMaxLength()) return;
+
         const operators = ['+', '-', 'x', '/'];
         const current = display.value;
+        const lastChar = current.slice(-1);
 
-        // If display is "0", allow operators (0+, 0-, 0x, 0/)
+        // If initial state is "0", allow operator chaining
         if (current === "0") {
             display.value = "0" + op;
             justEvaluated = false;
+            updateClearDeleteLabel();
+            updateGhostParen();
             return;
         }
 
-        // If display is Error: only allow "-" to start negative number
+        // If display is Error: only allow "-" to start fresh negative number
         if (current === "Error") {
             if (op === "-") {
                 display.value = "-";
+                updateClearDeleteLabel();
+                updateGhostParen();
             }
             return;
         }
 
-        const lastChar = current.slice(-1);
-
+        // ---------- 1) Chaining after "=" ----------
         if (justEvaluated) {
-            // After result, allow chaining → "4" then "+"
             display.value = current + op;
-        }
-        else if (operators.includes(lastChar)) {
-            // Replace last operator e.g. 4+ → 4-
-            display.value = current.slice(0, -1) + op;
-        }
-        else {
-            // Normal append
-            display.value = current + op;
+            justEvaluated = false;
+            updateClearDeleteLabel();
+            updateGhostParen();
+            return;
         }
 
+        // ---------- 2) Special toggle behaviour for "-" ----------
+        if (op === "-") {
+
+            // Case A: last character is "-" → toggle to "+"
+            if (lastChar === "-") {
+                display.value = current.slice(0, -1) + "+";
+                updateClearDeleteLabel();
+                updateGhostParen();
+                return;
+            }
+
+            // Case B: last character is "+" → toggle to "-"
+            if (lastChar === "+") {
+                display.value = current.slice(0, -1) + "-";
+                updateClearDeleteLabel();
+                updateGhostParen();
+                return;
+            }
+        }
+
+        // ---------- 3) Replace last operator if it's +, -, x, / ----------
+        if (operators.includes(lastChar)) {
+            display.value = current.slice(0, -1) + op;
+            justEvaluated = false;
+            updateClearDeleteLabel();
+            updateGhostParen();
+            return;
+        }
+
+        // ---------- 4) Normal append ----------
+        display.value += op;
         justEvaluated = false;
+        updateClearDeleteLabel();
+        updateGhostParen();
     }
 
 
     // Handle when "." is pressed
     function handleDot() {
+        if (isAtMaxLength()) return;
+
         const current = display.value;
 
-        // After equals or Error or empty → start a fresh decimal number
+        // After equals or Error → start a fresh decimal number
         if (justEvaluated || current === "Error") {
             display.value = "0.";
             justEvaluated = false;
+            updateClearDeleteLabel();
             return;
         }
 
@@ -178,54 +536,95 @@
         if (current === "0") {
             display.value = "0.";
             justEvaluated = false;
+            updateClearDeleteLabel();
             return;
         }
 
         // Otherwise append dot
         display.value += '.';
         justEvaluated = false;
+        updateClearDeleteLabel();
     }
 
-    // Clear (AC) button
-function clearDisplayBtn() {
-    // Always reset to "0"
-    display.value = "0";
-    justEvaluated = false;
-}
-
-// Delete (DE) button
-function deleteLastBtn() {
-    let current = display.value;
-
-    // If currently showing an error, just reset to 0
-    if (current === "Error") {
+    // Clear (AC) behaviour
+    function clearDisplayBtn() {
         display.value = "0";
         justEvaluated = false;
-        return;
+        updateClearDeleteLabel();
     }
 
-    // If only one character left, or already "0", reset to "0"
-    if (current.length <= 1 || current === "0") {
-        display.value = "0";
-    } else {
-        // Remove last character
-        display.value = current.slice(0, -1);
+    // Delete (DE) behaviour
+    function deleteLastBtn() {
+        let current = display.value;
+
+        // If currently showing an error, just reset to 0
+        if (current === "Error") {
+            display.value = "0";
+            justEvaluated = false;
+            updateClearDeleteLabel();
+            return;
+        }
+
+        // If only one character left, or already "0", reset to "0"
+        if (current.length <= 1 || current === "0") {
+            display.value = "0";
+        } else {
+            // Remove last character
+            display.value = current.slice(0, -1);
+        }
+
+        justEvaluated = false;
+        updateClearDeleteLabel();
     }
 
-    justEvaluated = false;
-}
+    // Handle when "(" or ")" is pressed
+    function handleParenthesis(par) {
+        const current = display.value;
+
+        // Block parentheses when display is Error
+        if (current === "Error") {
+            return;
+        }
+
+        if (par === '(') {
+            // Default 0 or just after result → start fresh with "("
+            if (current === "0" || justEvaluated) {
+                display.value = "(";
+                justEvaluated = false;
+                updateGhostParen();
+                return;
+            }
+
+            const lastChar = current.slice(-1);
+
+            // If previous char is a number, ".", "%", or ")", insert implicit multiply
+            if (/[0-9.)%]/.test(lastChar)) {
+                display.value = current + "x(";
+            } else {
+                display.value = current + "(";
+            }
+
+            justEvaluated = false;
+            updateGhostParen();
+            return;
+        }
+
+        // par === ')'
+        // Don't allow ")" right after evaluation or if no "(" to close
+        if (justEvaluated || !canCloseParen(current)) {
+            return;
+        }
+
+        display.value = current + ")";
+        justEvaluated = false;
+        updateGhostParen();
+    }
+
 
 
     /* 
        ----------------------------------------------------
        TOKENISER
-       Converts a string like "-5+6x9" into:
-       [-5, '+', 6, 'x', 9]
-       Handles:
-       - multi-digit numbers
-       - decimals
-       - leading minus, e.g. "-5"
-       - minus after another operator, e.g. "6x-9"
        ----------------------------------------------------
     */
     function tokenize(expression) {
@@ -237,33 +636,40 @@ function deleteLastBtn() {
         for (let i = 0; i < expression.length; i++) {
             const ch = expression[i];
 
-            // If digit or decimal point, build up the current number
             if ((!isNaN(ch) && ch !== ' ') || ch === '.') {
                 currentNumber += ch;
-            } 
+            }
+            else if (ch === '%') {
+                // finish the number and convert to percent
+                if (currentNumber === '') return [];
+                let num = parseFloat(currentNumber) / 100;
+                tokens.push(num);
+                currentNumber = '';
+            }
+            else if (ch === '(' || ch === ')') {
+                // push any number before parentheses
+                if (currentNumber !== '') {
+                    tokens.push(parseFloat(currentNumber));
+                    currentNumber = '';
+                }
+                tokens.push(ch);
+            }
             else if (isOperator(ch)) {
-                // Handle negative sign as part of a number:
-                // - at start: "-5+6"
-                // - or right after another operator: "6x-9"
-                if (ch === '-' && (currentNumber === '' && (tokens.length === 0 || isOperator(tokens[tokens.length - 1])))) {
-                    currentNumber += ch; // attach '-' to the number
+                if (ch === '-' && (currentNumber === '' && (tokens.length === 0 || isOperator(tokens[tokens.length - 1]) || tokens[tokens.length - 1] === '('))) {
+                    currentNumber += ch; // negative number
                 } else {
-                    // Finish the current number (if any) and push to tokens
                     if (currentNumber !== '') {
                         tokens.push(parseFloat(currentNumber));
                         currentNumber = '';
                     }
-                    // Push the operator as a separate token
                     tokens.push(ch);
                 }
-            } 
+            }
             else {
-                // Any invalid character → return empty to indicate error
-                return [];
+                return []; // invalid character
             }
         }
 
-        // Push the last number, if there is one
         if (currentNumber !== '') {
             tokens.push(parseFloat(currentNumber));
         }
@@ -271,74 +677,77 @@ function deleteLastBtn() {
         return tokens;
     }
 
+
     /* 
        ----------------------------------------------------
        EVALUATE WITH BODMAS
-       1st pass: handle x and / (higher precedence)
-       2nd pass: handle + and -
        ----------------------------------------------------
     */
     function evaluateTokens(tokens) {
-        if (tokens.length === 0) {
-            return NaN;
-        }
 
-        // ---------- First pass: x and / ----------
-        let firstPass = [];
-        firstPass.push(tokens[0]); // first token must be a number
+        function evalRecursive(startIndex = 0) {
+            const output = [];
 
-        for (let i = 1; i < tokens.length; i += 2) {
-            const op = tokens[i];
-            const nextNum = tokens[i + 1];
+            let i = startIndex;
+            while (i < tokens.length) {
+                const token = tokens[i];
 
-            if (op === 'x' || op === '/') {
-                const lastNum = firstPass.pop();
-
-                let intermediate;
-                switch (op) {
-                    case 'x':
-                        intermediate = multiply(lastNum, nextNum);
-                        break;
-                    case '/':
-                        intermediate = divide(lastNum, nextNum);
-                        break;
+                if (token === '(') {
+                    // evaluate inside parentheses
+                    const [value, newIndex] = evalRecursive(i + 1);
+                    output.push(value);
+                    i = newIndex;
+                }
+                else if (token === ')') {
+                    break; // return to caller
+                }
+                else {
+                    output.push(token);
                 }
 
-                firstPass.push(intermediate);
-            } else {
-                // For + and -, just carry them over for the second pass
-                firstPass.push(op, nextNum);
+                i++;
             }
+
+            // ---- FIRST PASS: × and ÷ ----
+            let firstPass = [];
+            firstPass.push(output[0]);
+
+            for (let j = 1; j < output.length; j += 2) {
+                const op = output[j];
+                const nextNum = output[j + 1];
+
+                if (op === 'x' || op === '/') {
+                    const lastNum = firstPass.pop();
+                    let intermediate =
+                        op === 'x' ? multiply(lastNum, nextNum) :
+                        divide(lastNum, nextNum);
+                    firstPass.push(intermediate);
+                } else {
+                    firstPass.push(op, nextNum);
+                }
+            }
+
+            // ---- SECOND PASS: + and - ----
+            let result = firstPass[0];
+            for (let j = 1; j < firstPass.length; j += 2) {
+                const op = firstPass[j];
+                const nextNum = firstPass[j + 1];
+
+                result =
+                    op === '+' ? add(result, nextNum) :
+                    subtract(result, nextNum);
+            }
+
+            return [result, i];
         }
 
-        // ---------- Second pass: + and - ----------
-        let result = firstPass[0];
-
-        for (let i = 1; i < firstPass.length; i += 2) {
-            const op = firstPass[i];
-            const nextNum = firstPass[i + 1];
-
-            switch (op) {
-                case '+':
-                    result = add(result, nextNum);
-                    break;
-                case '-':
-                    result = subtract(result, nextNum);
-                    break;
-            }
-        }
-
-        return result;
+        return evalRecursive()[0];
     }
+
 
     /* 
        ----------------------------------------------------
        MAIN CALCULATOR FUNCTION
-       - Reads the expression from the display
-       - Tokenizes it
-       - Evaluates using precedence (BODMAS)
-       - Shows "Error" for invalid expressions / divide by zero
-       - Sets justEvaluated = true when result is valid
        ----------------------------------------------------
     */
     function calculateResult() {
@@ -351,6 +760,7 @@ function deleteLastBtn() {
         if (tokens.length === 0) {
             display.value = 'Error';
             justEvaluated = false;
+            updateClearDeleteLabel();
             return;
         }
 
@@ -365,7 +775,12 @@ function deleteLastBtn() {
             display.value = result;
             justEvaluated = true; // mark that we just showed a final result
         }
+
+        updateClearDeleteLabel();
     }
+
+    // Build all buttons once DOM is ready
+    createButtons();
 
 </script>
 

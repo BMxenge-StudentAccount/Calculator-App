@@ -1,4 +1,3 @@
-
 *{
     margin: 0;
     padding: 0;
@@ -15,13 +14,22 @@
     justify-content: center;
 }
 
+.mode-label {
+    display: block;
+    font-size: 24px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin-bottom: 20px;
+}
+
 .calculator{
     background: #41424C;
     padding: 20px;
     border-radius: 10px;
+    width: 360px;   
 }
 
-.calculator form input{
+.calculator input[type="button"]{
     border: 0;
     outline: 0;
     width: 60px;
@@ -36,24 +44,29 @@
     margin: 10px;
 }
 
-form .display{
+.display{
+    width: 100%;         
     display: flex;
     justify-content: flex-end;
     margin: 20px 0;
 }
 
-form .display input{
+.display input{
     text-align: right;
     flex: 1;
     font-size: 45px;
     box-shadow: none;
+    border: none;
+    outline: none;
+    background: transparent;  
+    color: #fff;           
 }
 
-form input.equal{
-    width: 145px;
-    color: #33ffd8;
+.calculator input.equal{
+    background-color: #33ffd8;
+    color: #fff;           
 }
 
-form input.operators{
+.calculator input.operators{
     color: #33ffd8;
 }
